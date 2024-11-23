@@ -1,0 +1,8 @@
+{
+    "PARAMETER_DEFAULT": {
+        "api_key": "",
+        "base_url": "https://localhost:1234",
+        "timeout": 60,
+        "max_tokens": 150
+    }
+}
