@@ -84,6 +84,8 @@ class EnhancedSelfImprovingSearch:
                     print(f"{Fore.RED}Error: Empty search query. Retrying...{Style.RESET_ALL}")
                     attempt += 1
                     continue
+                
+                input(f"\nTrying search:\n{formulated_query}\nPress enter to continue\n")
 
                 search_results = self.perform_search(formulated_query, time_range)
 
