@@ -1,2 +1,0 @@
-FROM phi3:latest
-PARAMETER num_ctx 38000
