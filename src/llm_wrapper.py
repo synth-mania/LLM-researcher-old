@@ -13,7 +13,7 @@ class LLMWrapper:
         
         self.llm_config = get_llm_config(preset_name)
         openai.api_key = self.llm_config.get('api_key')
-        openai.api_base = self.llm_config.get('base_url', 'http://localhost:1234')
+        openai.api_base = self.llm_config.get('base_url')
     
     def generate(self, prompt, parameter_override=None):
         """

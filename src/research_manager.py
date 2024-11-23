@@ -4,15 +4,12 @@ import threading
 import time
 import re
 import json
-import logging
-import curses
 import signal
 from typing import List, Dict, Set, Optional, Tuple, Union
 from dataclasses import dataclass
 from queue import Queue
 from datetime import datetime
 from io import StringIO
-from colorama import init, Fore, Style
 import select
 import termios
 import tty
@@ -27,24 +24,24 @@ else:
     init()
 
 # Set up logging
-log_directory = 'logs'
-if not os.path.exists(log_directory):
-    os.makedirs(log_directory)
+# log_directory = 'logs'
+# if not os.path.exists(log_directory):
+#     os.makedirs(log_directory)
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-log_file = os.path.join(log_directory, 'research_llm.log')
-file_handler = logging.FileHandler(log_file)
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
-logger.handlers = []
-logger.addHandler(file_handler)
-logger.propagate = False
+# logger = logging.getLogger(__name__)
+# logger.setLevel(logging.INFO)
+# log_file = os.path.join(log_directory, 'research_llm.log')
+# file_handler = logging.FileHandler(log_file)
+# formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+# file_handler.setFormatter(formatter)
+# logger.handlers = []
+# logger.addHandler(file_handler)
+# logger.propagate = False
 
 # Suppress other loggers
-for name in logging.root.manager.loggerDict:
-    if name != __name__:
-        logging.getLogger(name).disabled = True
+# for name in logging.root.manager.loggerDict:
+#     if name != __name__:
+#         logging.getLogger(name).disabled = True
 
 @dataclass
 class ResearchFocus:

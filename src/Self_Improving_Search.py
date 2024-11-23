@@ -2,7 +2,6 @@ import time
 import re
 import os
 from typing import List, Dict, Tuple, Union
-from colorama import Fore, Style
 import logging
 import sys
 from io import StringIO

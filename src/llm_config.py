@@ -1,6 +1,6 @@
 import json
 
-with open("config/parameter_defaults", 'r') as file:
+with open("config/parameter_defaults.json", 'r') as file:
     PARAMETER_DEFAULT = json.load(file)
 
 def input_default(prompt, default):

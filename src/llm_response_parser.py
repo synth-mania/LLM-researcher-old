@@ -5,8 +5,8 @@ import json
 from .strategic_analysis_parser import StrategicAnalysisParser, AnalysisResult, ResearchFocus
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# logger = logging.getLogger(__name__)
 
 class UltimateLLMResponseParser:
     def __init__(self):
