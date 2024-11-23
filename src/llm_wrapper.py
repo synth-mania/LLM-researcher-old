@@ -43,12 +43,12 @@ class LLMWrapper:
         return response.choices[0].text.strip()
 
 class ChatLLMWrapper(LLMWrapper):
-    def __init__(self, system_message):
+    def __init__(self, preset_name, system_message):
         
-        super().__init__()
+        super().__init__(preset_name)
         self.system_message = system_message
 
-        self.messages = {"role": "system", "content": system_message}
+        self.messages = [{"role": "system", "content": system_message}]
 
     def generate(self, user_input, parameter_override=None):
         if parameter_override is None:
@@ -62,10 +62,11 @@ class ChatLLMWrapper(LLMWrapper):
         self.messages.append({"role": "user", "content": user_input})
 
         response = openai.ChatCompletion.create(
-            prompt=prompt,
             message=self.messages
             **parameters
         )
+        
+        unpacked_response = response.choices[0].message.content.strip()
+        self.messages.append({"role": "assistant", "content": unpacked_response})
 
-        self.messages.append({"role": "assistant", "content": response})
-        return response
+        return unpacked_response
