@@ -1,40 +1,34 @@
-# llm_config.py
+import json
 
-LLM_TYPE = "ollama"  # Options: 'llama_cpp', 'ollama'
+def input_default(prompt, default):
+    user_input = input(prompt)
+    if user_input.strip() == '':
+        return default
+    else:
+        return user_input
 
-# LLM settings for llama_cpp
-MODEL_PATH = "/home/james/llama.cpp/models/gemma-2-9b-it-Q6_K.gguf" # Replace with your llama.cpp models filepath
-
-LLM_CONFIG_LLAMA_CPP = {
-    "llm_type": "llama_cpp",
-    "model_path": MODEL_PATH,
-    "n_ctx": 20000,  # context size
-    "n_gpu_layers": 0,  # number of layers to offload to GPU (-1 for all, 0 for none)
-    "n_threads": 8,  # number of threads to use
-    "temperature": 0.7,  # temperature for sampling
-    "top_p": 0.9,  # top p for sampling
-    "top_k": 40,  # top k for sampling
-    "repeat_penalty": 1.1,  # repeat penalty
-    "max_tokens": 1024,  # max tokens to generate
-    "stop": ["User:", "\n\n"]  # stop sequences
-}
-
-# LLM settings for Ollama
-LLM_CONFIG_OLLAMA = {
-    "llm_type": "ollama",
-    "base_url": "http://localhost:11434",  # default Ollama server URL
-    "model_name": "researcher",  # Replace with your Ollama model name
-    "temperature": 0.7,
-    "top_p": 0.9,
-    "n_ctx": 55000,
-    "context_length": 55000,
-    "stop": ["User:", "\n\n"]
-}
 
 def get_llm_config():
-    if LLM_TYPE == "llama_cpp":
-        return LLM_CONFIG_LLAMA_CPP
-    elif LLM_TYPE == "ollama":
-        return LLM_CONFIG_OLLAMA
-    else:
-        raise ValueError(f"Invalid LLM_TYPE: {LLM_TYPE}")
+    try:
+        with open("config.json", "r") as f:
+            config = json.load(f)
+        return config
+    except FileNotFoundError:
+        print("No config file found. Please provide the following parameters to connect to an OpenAI compatible API:")
+
+        api_key = input_default("API Key: ", "")
+        base_url = input_default("Base URL: ", "https://localhost:1234")
+        timeout = int(input_default("Timeout (seconds): ", 60))
+        max_tokens = int(input_default("Max tokens: ", 150))
+        
+        config = {
+            "api_key": api_key,
+            "base_url": base_url,
+            "timeout": timeout,
+            "max_tokens": max_tokens
+        }
+        
+        with open("config.json", "w") as f:
+            json.dump(config, f)
+            
+        return config
