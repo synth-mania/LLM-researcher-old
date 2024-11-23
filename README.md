@@ -1,7 +1,7 @@
 # LLM-researcher-old
 
 ## Description
-LLM-researcher-old is an innovative research assistant that leverages locally-run large language models through Ollama to conduct automated online research on any given topic or question. Unlike traditional LLM interactions, this tool actually performs structured research by breaking down queries into focused research areas, systematically investigating via web searching and then scraping of relevant websites each area, and compiling it's findings all saved automatically into a text document with all content found and links for the source of each.
+LLM-researcher-old is an automated research assistant that leverages locally-run or cloud hosted large language models to conduct automated online research on any given topic or question. Unlike traditional LLM interactions, this tool actually performs structured research by breaking down queries into focused research areas, systematically investigating via web searching and then scraping of relevant websites each area, and compiling it's findings all saved automatically into a text document with all content found and links for the source of each.
 
 ## Here's how it works:
 
