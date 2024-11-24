@@ -1,6 +1,5 @@
 from typing import List, Dict, Optional, Union
 import re
-# import logging
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -32,8 +31,6 @@ class AnalysisResult:
         if not self.timestamp:
             self.timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-# Set up logging
-# logger = logging.getLogger(__name__)
 
 patterns = {
     'original_question': [
@@ -56,7 +53,6 @@ patterns = {
     ]
 }
 
-        # self.logger = logging.getLogger(__name__)
 
 def parse_analysis(llm_response: str) -> Optional[AnalysisResult]:
     """Main parsing method with improved validation"""
