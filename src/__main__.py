@@ -44,66 +44,6 @@ class ResearchSession:
     def start_research(self):
         if self.llm_config is None:
             raise ValueError("No API configuration loaded. Please load a preset first.")
-        
-        
-        
-
-def handle_research_mode(research_manager, query):
-    """Handles research mode operations"""
-    print("Initiating research mode...")
-
-    try:
-        # Start the research
-        research_manager.start_research(query)
-
-        submit_key = "CTRL+Z" if os.name == 'nt' else "CTRL+D"
-        print("\nResearch Running. Available Commands:")
-        print(f"Type command and press {submit_key}:")
-        print("'s' = Show status")
-        print("'f' = Show focus")
-        print("'q' = Quit research")
-
-        while research_manager.is_active():
-            try:
-                command = get_multiline_input().strip().lower()
-                if command == 's':
-                    print("\n" + research_manager.get_progress())
-                elif command == 'f':
-                    if research_manager.current_focus:
-                        print(f"\nCurrent Focus:")
-                        print(f"Area: {research_manager.current_focus.area}")
-                        print(f"Priority: {research_manager.current_focus.priority}")
-                        print(f"Reasoning: {research_manager.current_focus.reasoning}")
-                    else:
-                        print("\nNo current focus area")
-                elif command == 'q':
-                    break
-            except KeyboardInterrupt:
-                break
-
-        # Get final summary first
-        summary = research_manager.terminate_research()
-
-        # Ensure research UI is fully cleaned up
-        research_manager._cleanup_research_ui()
-
-        # Now in main terminal, show summary
-        print(f"\nResearch Summary:")
-        print(summary)
-
-        # Only NOW start conversation mode if we have a valid summary
-        if research_manager.research_complete and research_manager.research_summary:
-            time.sleep(0.5)  # Small delay to ensure clean transition
-            research_manager.start_conversation_mode()
-
-        return
-
-    except KeyboardInterrupt:
-        print("\nResearch interrupted.")
-        research_manager.terminate_research()
-    except Exception as e:
-        print(f"\nResearch error: {str(e)}")
-        research_manager.terminate_research()
 
 def main():
     print("LLM Researcher\n")
