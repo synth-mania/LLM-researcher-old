@@ -17,6 +17,8 @@ from threading import Event
 from urllib.parse import urlparse
 from pathlib import Path
 
+from .llm_wrapper import LLMWrapper, ChatLLMWrapper # new
+
 @dataclass
 class ResearchFocus:
     """Represents a specific area of research focus"""
@@ -47,7 +49,6 @@ class AnalysisResult:
 class StrategicAnalysisParser:
     def __init__(self, llm=None):
         self.llm = llm
-        self.logger = logging.getLogger(__name__)
         # Simplify patterns to match exactly what we expect
         self.patterns = {
             'priority': [
@@ -98,12 +99,11 @@ Priority: [number 1-5]
                         timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     )
                 else:
-                    self.logger.warning(f"Attempt {attempt + 1}: No valid areas generated, retrying...")
                     print(f"\nRetrying research area generation (Attempt {attempt + 1}/{max_retries})...")
 
             # If all retries failed, try one final time with a stronger prompt
             prompt += "\n\nIMPORTANT: You MUST provide exactly 5 research areas with priorities. This is crucial."
-            response = self.llm.generate(prompt, max_tokens=1000)
+            response = self.llm.generate(prompt, {"max_tokens": 1000})
             focus_areas = self._extract_research_areas(response)
 
             if focus_areas:
@@ -115,11 +115,9 @@ Priority: [number 1-5]
                     timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 )
 
-            self.logger.error("Failed to generate any valid research areas after all attempts")
             return None
 
         except Exception as e:
-            self.logger.error(f"Error in strategic analysis: {str(e)}")
             return None
 
     def _extract_research_areas(self, text: str) -> List[ResearchFocus]:
@@ -238,34 +236,14 @@ Priority: [number 1-5]
 
         return "\n".join(formatted)
 
-class OutputRedirector:
-    """Redirects stdout and stderr to a string buffer"""
-    def __init__(self, stream=None):
-        self.stream = stream or StringIO()
-        self.original_stdout = sys.stdout
-        self.original_stderr = sys.stderr
-
-    def __enter__(self):
-        sys.stdout = self.stream
-        sys.stderr = self.stream
-        return self.stream
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        sys.stdout = self.original_stdout
-        sys.stderr = self.original_stderr
 
 class ResearchManager:
     """Manages the research process including analysis, search, and documentation"""
-    def __init__(self, llm_wrapper, parser, search_engine, max_searches_per_cycle: int = 5):
-        self.llm = llm_wrapper
+    def __init__(self, llm_config, search_engine, max_searches_per_cycle: int = 5):
+        self.llm_wrapper = LLMWrapper(llm_config)
         self.parser = parser
         self.search_engine = search_engine
         self.max_searches = max_searches_per_cycle
-        self.should_terminate = threading.Event()
-        self.shutdown_event = Event()
-        self.research_started = threading.Event()
-        self.research_thread = None
-        self.thinking = False
         self.stop_words = {
             'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'i',
             'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at'
@@ -289,51 +267,16 @@ class ResearchManager:
         self.session_files = []
 
         # Initialize UI and parser
-        self.ui = TerminalUI()
-        self.strategic_parser = StrategicAnalysisParser(llm=self.llm)
-
-        # Initialize new flags for pausing and assessment
-        self.research_paused = False
-        self.awaiting_user_decision = False
-
-        # Setup signal handlers
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
-
-    def _signal_handler(self, signum, frame):
-        """Handle interrupt signals"""
-        self.shutdown_event.set()
-        self.should_terminate.set()
-        self._cleanup()
+        self.strategic_parser = StrategicAnalysisParser(llm=self.llm_wrapper)
 
     def print_thinking(self):
         """Display thinking indicator to user"""
         self.ui.update_output("🧠 Thinking...")
 
-    @staticmethod
-    def get_initial_input() -> str:
-        """Get the initial research query from user"""
-        print(f"{Fore.GREEN}📝 Enter your message (Press CTRL+D to submit):{Style.RESET_ALL}")
-        lines = []
-        try:
-            while True:
-                line = input()
-                if line:  # Only add non-empty lines
-                    lines.append(line)
-                if not line:  # Empty line (just Enter pressed)
-                    break
-        except EOFError:  # Ctrl+D pressed
-            pass
-        except KeyboardInterrupt:  # Ctrl+C pressed
-            print("\nOperation cancelled")
-            sys.exit(0)
-
-        return " ".join(lines).strip()
 
     def formulate_search_queries(self, focus_area: ResearchFocus) -> List[str]:
         """Generate search queries for a focus area"""
         try:
-            self.print_thinking()
 
             prompt = f"""
 In order to research this query/topic:
@@ -352,16 +295,16 @@ Time range: [d/w/m/y/none]
 
 Do not provide any additional information or explanation, note that the time range allows you to see results within a time range (d is within the last day, w is within the last week, m is within the last month, y is within the last year, and none is results from anytime, only select one, using only the corresponding letter for whichever of these options you select as indicated in the response format) use your judgement as many searches will not require a time range and some may depending on what the research focus is.
 """
-            response_text = self.llm.generate(prompt, max_tokens=50, stop=None)
+            response_text = self.llm_wrapper.generate(prompt, max_tokens={"max_tokens": 50})
             query, time_range = self.parse_query_response(response_text)
 
             if not query:
                 self.ui.update_output(f"{Fore.RED}Error: Empty search query. Using focus area as query...{Style.RESET_ALL}")
                 return [focus_area.area]
 
-            self.ui.update_output(f"{Fore.YELLOW}Original focus: {focus_area.area}{Style.RESET_ALL}")
-            self.ui.update_output(f"{Fore.YELLOW}Formulated query: {query}{Style.RESET_ALL}")
-            self.ui.update_output(f"{Fore.YELLOW}Time range: {time_range}{Style.RESET_ALL}")
+            print(f"Original focus: {focus_area.area}")
+            print(f"Formulated query: {query}")
+            print(f"Time range: {time_range}")
 
             return [query]
 
@@ -415,34 +358,7 @@ Do not provide any additional information or explanation, note that the time ran
 
             return result
         except Exception as e:
-            logger.error(f"Error parsing search query: {str(e)}")
             return {'query': '', 'time_range': 'none'}
-
-    def _cleanup(self):
-        """Enhanced cleanup to handle conversation mode"""
-        self.conversation_active = False
-        self.should_terminate.set()
-
-        if self.research_thread and self.research_thread.is_alive():
-            try:
-                self.research_thread.join(timeout=1.0)
-                if self.research_thread.is_alive():
-                    import ctypes
-                    ctypes.pythonapi.PyThreadState_SetAsyncExc(
-                        ctypes.c_long(self.research_thread.ident),
-                        ctypes.py_object(SystemExit)
-                    )
-            except Exception as e:
-                logger.error(f"Error terminating research thread: {str(e)}")
-
-        if hasattr(self.llm, 'cleanup'):
-            try:
-                self.llm.cleanup()
-            except Exception as e:
-                logger.error(f"Error cleaning up LLM: {str(e)}")
-
-        if hasattr(self.ui, 'cleanup'):
-            self.ui.cleanup()
 
     def _initialize_document(self):
         """Initialize research session document"""
@@ -651,7 +567,7 @@ Do not provide any additional information or explanation, note that the time ran
             with open(self.document_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             estimated_tokens = len(content.split()) * 1.3
-            max_tokens = self.llm.llm_config.get('n_ctx', 2048)
+            max_tokens = self.llm_wrapper.llm_config.get('n_ctx', 2048)
             current_ratio = estimated_tokens / max_tokens
 
             if current_ratio > 0.8:
@@ -663,63 +579,24 @@ Do not provide any additional information or explanation, note that the time ran
             logger.error(f"Error checking document size: {str(e)}")
             return True
 
-    def _handle_command(self, cmd: str):
-        """Handle user commands during research"""
-        if cmd.lower() == 's':
-            self.ui.update_output(self.get_progress())
-        elif cmd.lower() == 'f':
-            if self.current_focus:
-                self.ui.update_output("\nCurrent Focus:")
-                self.ui.update_output(f"Area: {self.current_focus.area}")
-                self.ui.update_output(f"Priority: {self.current_focus.priority}")
-            else:
-                self.ui.update_output("\nNo current focus area")
-        elif cmd.lower() == 'p':
-            self.pause_and_assess()
-        elif cmd.lower() == 'q':
-            self.ui.update_output("\nInitiating research termination...")
-            self.should_terminate.set()
-            self.ui.update_output("\nGenerating research summary... please wait...")
-            summary = self.terminate_research()
-            self.ui.update_output("\nFinal Research Summary:")
-            self.ui.update_output(summary)
-
     def pause_and_assess(self):
         """Pause the research and assess if the collected content is sufficient."""
-        try:
-            # Pause the research thread
-            self.ui.update_output("\nPausing research for assessment...")
-            self.research_paused = True
+        print("\nPausing research for assessment...")
 
-            # Start progress indicator in a separate thread
-            self.summary_ready = False
-            indicator_thread = threading.Thread(
-                target=self.show_progress_indicator,
-                args=("Assessing the researched information...",)
-            )
-            indicator_thread.daemon = True
-            indicator_thread.start()
+        # Read the current research content
+        if not os.path.exists(self.document_path):
+            print("No research data found to assess.")
+            return
 
-            # Read the current research content
-            if not os.path.exists(self.document_path):
-                self.summary_ready = True
-                indicator_thread.join()
-                self.ui.update_output("No research data found to assess.")
-                self.research_paused = False
-                return
+        with open(self.document_path, 'r', encoding='utf-8') as f:
+            content = f.read().strip()
 
-            with open(self.document_path, 'r', encoding='utf-8') as f:
-                content = f.read().strip()
+        if not content:
+            print("No research data was collected to assess.")
+            return
 
-            if not content:
-                self.summary_ready = True
-                indicator_thread.join()
-                self.ui.update_output("No research data was collected to assess.")
-                self.research_paused = False
-                return
-
-            # Prepare the prompt for the AI assessment
-            assessment_prompt = f"""
+        # Prepare the prompt for the AI assessment
+        assessment_prompt = f"""
 Based on the following research content, please assess whether the original query "{self.original_query}" can be answered sufficiently with the collected information.
 
 Research Content:
@@ -733,47 +610,16 @@ Instructions:
 Assessment:
 """
 
-            # Generate the assessment
-            assessment = self.llm.generate(assessment_prompt, max_tokens=200)
+        # Generate the assessment
+        assessment = self.llm_wrapper.generate(assessment_prompt, {"max_tokens": 200})
 
-            # Stop the progress indicator
-            self.summary_ready = True
-            indicator_thread.join()
+        # Display the assessment
+        print("\nAssessment Result:")
+        print(assessment.strip())
 
-            # Display the assessment
-            self.ui.update_output("\nAssessment Result:")
-            self.ui.update_output(assessment.strip())
-
-            # Provide user with options to continue or quit
-            self.ui.update_output("\nEnter 'c' to continue the research or 'q' to terminate and generate the summary.")
-            self.awaiting_user_decision = True  # Flag to indicate we are waiting for user's decision
-
-            while self.awaiting_user_decision:
-                cmd = self.ui.get_input("Enter command ('c' to continue, 'q' to quit): ")
-                if cmd is None:
-                    continue  # Ignore invalid inputs
-                cmd = cmd.strip().lower()
-                if cmd == 'c':
-                    self.ui.update_output("\nResuming research...")
-                    self.research_paused = False
-                    self.awaiting_user_decision = False
-                elif cmd == 'q':
-                    self.ui.update_output("\nTerminating research and generating summary...")
-                    self.awaiting_user_decision = False
-                    self.should_terminate.set()
-                    summary = self.terminate_research()
-                    self.ui.update_output("\nFinal Research Summary:")
-                    self.ui.update_output(summary)
-                    break
-                else:
-                    self.ui.update_output("Invalid command. Please enter 'c' to continue or 'q' to quit.")
-
-        except Exception as e:
-            logger.error(f"Error during pause and assess: {str(e)}")
-            self.ui.update_output(f"Error during assessment: {str(e)}")
-            self.research_paused = False
-        finally:
-            self.summary_ready = True  # Ensure the indicator thread can exit
+        # Provide user with options to continue or quit
+        print("Enter 'c' to continue the research or 'q' to terminate and generate the summary.")
+        self.awaiting_user_decision = True  # Flag to indicate we are waiting for user's decision
 
     def get_progress(self) -> str:
         """Get current research progress"""
@@ -785,219 +631,83 @@ Research Progress:
 - Current focus: {self.current_focus.area if self.current_focus else 'Initializing'}
 """
 
-    def is_active(self) -> bool:
-        """Check if research is currently active"""
-        return self.is_running and self.research_thread and self.research_thread.is_alive()
-
     def terminate_research(self) -> str:
-        """Terminate research and return to main terminal"""
-        try:
-            print("Initiating research termination...")
-            sys.stdout.flush()
 
-            # Start progress indicator in a separate thread immediately
-            indicator_thread = threading.Thread(target=self.show_progress_indicator)
-            indicator_thread.daemon = True
-            indicator_thread.start()
+        print("Initiating research termination...")
 
-            if not os.path.exists(self.document_path):
-                self.summary_ready = True
-                indicator_thread.join(timeout=1.0)
-                self._cleanup()
-                return "No research data found to summarize."
 
-            with open(self.document_path, 'r', encoding='utf-8') as f:
-                content = f.read().strip()
-                self.research_content = content  # Store for conversation mode
+        if not os.path.exists(self.document_path):
+            self.summary_ready = True
+            indicator_thread.join(timeout=1.0)
+            self._cleanup()
+            return "No research data found to summarize."
 
-            if not content or content == "Research Findings:\n\n":
-                self.summary_ready = True
-                indicator_thread.join(timeout=1.0)
-                self._cleanup()
-                return "No research data was collected to summarize."
+        with open(self.document_path, 'r', encoding='utf-8') as f:
+            content = f.read().strip()
+            self.research_content = content  # Store for conversation mode
 
-            try:
-                # Generate summary using LLM
-                summary_prompt = f"""
-                Analyze the following content to provide a comprehensive research summary and a response to the user's original query "{self.original_query}" ensuring that you conclusively answer the query in detail:
 
-                Research Content:
-                {content}
+        # Generate summary using LLM
+        summary_prompt = f"""
+        Analyze the following content to provide a comprehensive research summary and a response to the user's original query "{self.original_query}" ensuring that you conclusively answer the query in detail:
 
-                Important Instructions:
-                > Summarize the research findings that are relevant to the Original topic/question: "{self.original_query}"
-                > Ensure that in your summary you directly answer the original question/topic conclusively to the best of your ability in detail.
-                > Read the original topic/question again "{self.original_query}" and abide by any additional instructions that it contains, exactly as instructed in your summary otherwise provide it normally should it not have any specific instructions
+        Research Content:
+        {content}
 
-                Summary:
-                """
+        Important Instructions:
+        > Summarize the research findings that are relevant to the Original topic/question: "{self.original_query}"
+        > Ensure that in your summary you directly answer the original question/topic conclusively to the best of your ability in detail.
+        > Read the original topic/question again "{self.original_query}" and abide by any additional instructions that it contains, exactly as instructed in your summary otherwise provide it normally should it not have any specific instructions
 
-                summary = self.llm.generate(summary_prompt, max_tokens=4000)
+        Summary:
+        """
 
-                # Signal that summary is complete to stop the progress indicator
-                self.summary_ready = True
-                indicator_thread.join(timeout=1.0)
+        summary = self.llm_wrapper.generate(summary_prompt, max_tokens=4000)
 
-                # Store summary and mark research as complete
-                self.research_summary = summary
-                self.research_complete = True
+        # Signal that summary is complete to stop the progress indicator
+        self.summary_ready = True
+        indicator_thread.join(timeout=1.0)
 
-                # Format summary
-                formatted_summary = f"""
-                {'='*80}
-                RESEARCH SUMMARY
-                {'='*80}
+        # Store summary and mark research as complete
+        self.research_summary = summary
+        self.research_complete = True
 
-                Original Query: {self.original_query}
-                Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        # Format summary
+        formatted_summary = f"""
+        {'='*80}
+        RESEARCH SUMMARY
+        {'='*80}
 
-                {summary}
+        Original Query: {self.original_query}
+        Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
-                {'='*80}
-                End of Summary
-                {'='*80}
-                """
+        {summary}
 
-                # Write to document
-                with open(self.document_path, 'a', encoding='utf-8') as f:
-                    f.write("\n\n" + formatted_summary)
+        {'='*80}
+        End of Summary
+        {'='*80}
+        """
 
-                # Clean up research UI
-                if hasattr(self, 'ui') and self.ui:
-                    self.ui.cleanup()
+        # Write to document
+        with open(self.document_path, 'a', encoding='utf-8') as f:
+            f.write("\n\n" + formatted_summary)
 
-                return formatted_summary
-
-            except Exception as e:
-                self.summary_ready = True
-                indicator_thread.join(timeout=1.0)
-                raise e
-
-        except Exception as e:
-            error_msg = f"Error generating summary: {str(e)}"
-            logger.error(error_msg)
-            return error_msg
-
-        finally:
-            # Clean up research UI
-            self._cleanup_research_ui()
-
-    def show_progress_indicator(self, message="Generating summary, please wait..."):
-        """Show a rotating progress indicator until the summary is ready."""
-        symbols = ['|', '/', '-', '\\']
-        idx = 0
-        self.summary_ready = False  # Track whether the summary is complete
-        while not self.summary_ready:
-            sys.stdout.write(f"\r{message} {symbols[idx]}")
-            sys.stdout.flush()
-            idx = (idx + 1) % len(symbols)
-            time.sleep(0.2)  # Adjust the speed of the rotation if needed
-        sys.stdout.write("\r" + " " * (len(message) + 2) + "\r")  # Clear the line when done
-
-    def _cleanup_research_ui(self):
-        """Clean up just the research UI components"""
-        if hasattr(self, 'ui') and self.ui:
-            self.ui.cleanup()
-
-    def show_thinking_indicator(self, message: str, stop_flag_name: str):
-        """Show a rotating thinking indicator with custom message"""
-        symbols = ['|', '/', '-', '\\']
-        idx = 0
-        while getattr(self, stop_flag_name):  # Use dynamic attribute lookup
-            sys.stdout.write(f"\r{message} {symbols[idx]}")
-            sys.stdout.flush()
-            idx = (idx + 1) % len(symbols)
-            time.sleep(0.2)
-        sys.stdout.write("\r" + " " * (len(message) + 2) + "\r")  # Clear the line when done
-
-    def start_conversation_mode(self):
-        """Start interactive conversation mode with CTRL+D input handling and thinking indicator"""
-        self.conversation_active = True
-        self.thinking = False
-
-        # Print header with clear instructions
-        print("\n" + "="*80)
-        print(Fore.CYAN + "Research Conversation Mode" + Style.RESET_ALL)
-        print("="*80)
-        print(Fore.YELLOW + "\nInstructions:")
-        print("- Type your question and press CTRL+D to submit")
-        print("- Type 'quit' and press CTRL+D to exit")
-        print("- Your messages appear in green")
-        print("- AI responses appear in cyan" + Style.RESET_ALL + "\n")
-
-        while self.conversation_active:
-            try:
-                # Show prompt with user input in green
-                print(Fore.GREEN + "Your question (Press CTRL+D to submit):" + Style.RESET_ALL)
-                user_input = self.get_multiline_conversation_input()
-
-                # Handle exit commands
-                if not user_input or user_input.lower() in ['quit', 'exit', 'q']:
-                    print(Fore.YELLOW + "\nExiting conversation mode..." + Style.RESET_ALL)
-                    self.conversation_active = False
-                    break
-
-                # Skip empty input
-                if not user_input.strip():
-                    continue
-
-                # Echo the submitted question for clarity
-                print(Fore.GREEN + "Submitted question:" + Style.RESET_ALL)
-                print(Fore.GREEN + user_input + Style.RESET_ALL + "\n")
-
-                # Start thinking indicator in a separate thread
-                self.thinking = True  # Set flag before starting thread
-                thinking_thread = threading.Thread(
-                    target=self.show_thinking_indicator,
-                    args=("Thinking...", "thinking")
-                )
-                thinking_thread.daemon = True
-                thinking_thread.start()
-
-                try:
-                    # Generate response
-                    response = self._generate_conversation_response(user_input)
-
-                    # Stop thinking indicator
-                    self.thinking = False
-                    thinking_thread.join()
-
-                    # Display response in cyan
-                    print(Fore.CYAN + "AI Response:" + Style.RESET_ALL)
-                    print(f"{Fore.CYAN}{response}{Style.RESET_ALL}\n")
-                    print("-" * 80 + "\n")  # Separator between QA pairs
-
-                except Exception as e:
-                    self.thinking = False  # Ensure thinking indicator stops
-                    thinking_thread.join()
-                    raise e
-
-            except KeyboardInterrupt:
-                self.thinking = False  # Ensure thinking indicator stops
-                print(Fore.YELLOW + "\nOperation cancelled. Submit 'quit' to exit." + Style.RESET_ALL)
-            except Exception as e:
-                logger.error(f"Error in conversation mode: {str(e)}")
-                print(Fore.RED + f"Error processing question: {str(e)}" + Style.RESET_ALL)
+        return formatted_summary
 
     def _generate_conversation_response(self, user_query: str) -> str:
-        """Generate contextual responses with improved context handling"""
-        try:
-            # Add debug logging to verify content
-            logger.info(f"Research summary length: {len(self.research_summary) if self.research_summary else 0}")
-            logger.info(f"Research content length: {len(self.research_content) if self.research_content else 0}")
 
-            # First verify we have content
-            if not self.research_content and not self.research_summary:
-                # Try to reload from file if available
-                try:
-                    if os.path.exists(self.document_path):
-                        with open(self.document_path, 'r', encoding='utf-8') as f:
-                            self.research_content = f.read().strip()
-                except Exception as e:
-                    logger.error(f"Failed to reload research content: {str(e)}")
+        # First verify we have content
+        if not self.research_content and not self.research_summary:
+            # Try to reload from file if available
+            try:
+                if os.path.exists(self.document_path):
+                    with open(self.document_path, 'r', encoding='utf-8') as f:
+                        self.research_content = f.read().strip()
+            except Exception as e:
+                logger.error(f"Failed to reload research content: {str(e)}")
 
-            # Prepare context, ensuring we have content
-            context = f"""
+        # Prepare context, ensuring we have content
+        context = f"""
 Research Content:
 {self.research_content}
 
@@ -1005,7 +715,7 @@ Research Summary:
 {self.research_summary if self.research_summary else 'No summary available'}
 """
 
-            prompt = f"""
+        prompt = f"""
 Based on the following research content and summary, please answer this question:
 
 {context}
@@ -1032,117 +742,14 @@ Instructions:
 Answer:
 """
 
-            response = self.llm.generate(
-                prompt,
-                max_tokens=1000,  # Increased for more detailed responses
-                temperature=0.7
-            )
+        response = self.llm_wrapper.generate(
+            prompt,
+            max_tokens=1000,  # Increased for more detailed responses
+            temperature=0.7
+        )
 
-            if not response or not response.strip():
-                return "I apologize, but I cannot find relevant information in the research content to answer your question."
+        if not response or not response.strip():
+            return "I apologize, but I cannot find relevant information in the research content to answer your question."
 
-            return response.strip()
+        return response.strip()
 
-        except Exception as e:
-            logger.error(f"Error generating response: {str(e)}")
-            return f"I apologize, but I encountered an error processing your question: {str(e)}"
-
-    def get_multiline_conversation_input(self) -> str:
-        """Get multiline input with CTRL+D handling for conversation mode"""
-        buffer = []
-
-        # Save original terminal settings
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
-
-        try:
-            # Set terminal to raw mode
-            tty.setraw(fd)
-
-            current_line = []
-            while True:
-                char = sys.stdin.read(1)
-
-                # CTRL+D detection
-                if not char or ord(char) == 4:  # EOF or CTRL+D
-                    sys.stdout.write('\n')
-                    if current_line:
-                        buffer.append(''.join(current_line))
-                    return ' '.join(buffer).strip()
-
-                # Handle special characters
-                elif ord(char) == 13:  # Enter
-                    sys.stdout.write('\n')
-                    buffer.append(''.join(current_line))
-                    current_line = []
-
-                elif ord(char) == 127:  # Backspace
-                    if current_line:
-                        current_line.pop()
-                        sys.stdout.write('\b \b')
-
-                elif ord(char) == 3:  # CTRL+C
-                    sys.stdout.write('\n')
-                    return 'quit'
-
-                # Normal character
-                elif 32 <= ord(char) <= 126:  # Printable characters
-                    current_line.append(char)
-                    sys.stdout.write(char)
-
-                sys.stdout.flush()
-
-        finally:
-            # Restore terminal settings
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-            print()  # New line for clean display
-
-if __name__ == "__main__":
-    from llm_wrapper import LLMWrapper
-    from llm_response_parser import UltimateLLMResponseParser
-    from Self_Improving_Search import EnhancedSelfImprovingSearch
-
-    try:
-        print(f"{Fore.CYAN}Initializing Research System...{Style.RESET_ALL}")
-        llm = LLMWrapper()
-        parser = UltimateLLMResponseParser()
-        search_engine = EnhancedSelfImprovingSearch(llm, parser)
-        manager = ResearchManager(llm, parser, search_engine)
-
-        print(f"{Fore.GREEN}System initialized. Enter your research topic or 'quit' to exit.{Style.RESET_ALL}")
-        while True:
-            try:
-                topic = ResearchManager.get_initial_input()
-                if topic.lower() == 'quit':
-                    break
-
-                if not topic:
-                    continue
-
-                if not topic.startswith('@'):
-                    print(f"{Fore.YELLOW}Please start your research query with '@'{Style.RESET_ALL}")
-                    continue
-
-                topic = topic[1:]  # Remove @ prefix
-                manager.start_research(topic)
-                summary = manager.terminate_research()
-                print(f"\n{Fore.GREEN}Research Summary:{Style.RESET_ALL}")
-                print(summary)
-                print(f"\n{Fore.GREEN}Research completed. Ready for next topic.{Style.RESET_ALL}\n")
-
-            except KeyboardInterrupt:
-                print(f"\n{Fore.YELLOW}Operation cancelled. Ready for next topic.{Style.RESET_ALL}")
-                if 'manager' in locals():
-                    manager.terminate_research()
-                continue
-
-    except KeyboardInterrupt:
-        print(f"\n{Fore.YELLOW}Research system shutting down.{Style.RESET_ALL}")
-        if 'manager' in locals():
-            manager.terminate_research()
-    except Exception as e:
-        print(f"{Fore.RED}Critical error: {str(e)}{Style.RESET_ALL}")
-        logger.error("Critical error in main loop", exc_info=True)
-
-    if os.name == 'nt':
-        print(f"{Fore.YELLOW}Running on Windows - Some features may be limited{Style.RESET_ALL}")
