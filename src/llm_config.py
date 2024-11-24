@@ -1,8 +1,5 @@
 import json
 
-with open("config/parameter_defaults.json", 'r') as file:
-    PARAMETER_DEFAULT = json.load(file)
-
 def input_default(prompt, default):
     user_input = input(prompt)
     if user_input.strip() == '':
@@ -17,6 +14,9 @@ def get_llm_config(preset_name = "default"):
         return config
     except FileNotFoundError:
         print("No config file found. Please provide the following parameters to connect to an OpenAI compatible API:")
+
+        with open("config/parameter_defaults.json", 'r') as file:
+            PARAMETER_DEFAULT = json.load(file)
 
         config = {}
         for key, default in PARAMETER_DEFAULT.items():
