@@ -13,17 +13,16 @@ class ResearchSession:
     
     def __init__(self):
 
-        print("research session initializing...\n")
-        print("enter LLM preset name (entering a preset which doesn't exists prompts it's creation)")
-        self.preset_name = input("preset name (default=default): ").strip() or "default"
+        print("Initialized new ResearchSession\n")
+        
 
-    def check_preset(self):
+    def load_preset(self, preset_name):
         """Initialize system with proper error checking"""
 
-        llm_config = get_llm_config(preset_name=self.preset_name)
+        self.llm_config = get_llm_config(preset_name=preset_name)
 
         try:
-            response = requests.get(llm_config['base_url'], timeout=5)
+            response = requests.get(self.llm_config['base_url'], timeout=5)
             if response.status_code != 200:
                 raise ConnectionError()
         except requests.exceptions.RequestException:
@@ -96,7 +95,10 @@ def handle_research_mode(research_manager, query):
 def main():
     print("LLM Researcher")
     research_session = ResearchSession()
-    research_session.check_preset()
+    
+    print("enter LLM preset name (entering a preset which doesn't exists prompts it's creation)")
+    preset_name = input("preset name (default=default): ").strip() or "default"
+    research_session.load_preset(preset_name)
 
     try:
         llm, parser, search_engine, research_manager = check_preset()
