@@ -1,12 +1,7 @@
 import re
 from typing import Dict, List, Union, Optional
-import logging
 import json
 from .strategic_analysis_parser import StrategicAnalysisParser, AnalysisResult, ResearchFocus
-
-# Set up logging
-# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-# logger = logging.getLogger(__name__)
 
 class UltimateLLMResponseParser:
     def __init__(self):
@@ -34,8 +29,6 @@ class UltimateLLMResponseParser:
         Returns:
             Dict containing parsed response
         """
-        logger.info(f"Starting to parse LLM response in {mode} mode")
-
         if mode == 'research':
             return self._parse_research_response(response)
 
@@ -55,22 +48,18 @@ class UltimateLLMResponseParser:
         ]
 
         for strategy in parsing_strategies:
-            try:
-                parsed_result = strategy(response)
-                if self._is_valid_result(parsed_result):
-                    result.update(parsed_result)
-                    logger.info(f"Successfully parsed using strategy: {strategy.__name__}")
-                    break
-            except Exception as e:
-                logger.warning(f"Error in parsing strategy {strategy.__name__}: {str(e)}")
-
+            parsed_result = strategy(response)
+            if self._is_valid_result(parsed_result):
+                result.update(parsed_result)
+                break
+                
         if not self._is_valid_result(result):
-            logger.warning("All parsing strategies failed. Using fallback parsing.")
+            print("All parsing strategies failed. Using fallback parsing.")
             result = self._fallback_parsing(response)
 
         result = self._post_process_result(result)
 
-        logger.info("Finished parsing LLM response")
+        print("Finished parsing LLM response")
         return result
 
     def _parse_research_response(self, response: str) -> Dict[str, Union[str, AnalysisResult]]:
@@ -84,14 +73,14 @@ class UltimateLLMResponseParser:
                     'error': None
                 }
             else:
-                logger.error("Failed to parse strategic analysis")
+                print("Failed to parse strategic analysis")
                 return {
                     'mode': 'research',
                     'analysis_result': None,
                     'error': 'Failed to parse strategic analysis'
                 }
         except Exception as e:
-            logger.error(f"Error in research response parsing: {str(e)}")
+            print(f"Error in research response parsing: {str(e)}")
             return {
                 'mode': 'research',
                 'analysis_result': None,
@@ -120,7 +109,7 @@ class UltimateLLMResponseParser:
 
             return result
         except Exception as e:
-            logger.error(f"Error parsing search query: {str(e)}")
+            print(f"Error parsing search query: {str(e)}")
             return {'query': '', 'time_range': 'none'}
 
     def _parse_structured_response(self, response: str) -> Dict[str, Union[str, List[int]]]:
