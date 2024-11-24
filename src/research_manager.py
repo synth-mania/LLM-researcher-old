@@ -271,7 +271,7 @@ class ResearchManager:
 
     def print_thinking(self):
         """Display thinking indicator to user"""
-        self.ui.update_output("🧠 Thinking...")
+        print("🧠 Thinking...")
 
 
     def formulate_search_queries(self, focus_area: ResearchFocus) -> List[str]:
@@ -299,7 +299,7 @@ Do not provide any additional information or explanation, note that the time ran
             query, time_range = self.parse_query_response(response_text)
 
             if not query:
-                self.ui.update_output(f"{Fore.RED}Error: Empty search query. Using focus area as query...{Style.RESET_ALL}")
+                print("Error: Empty search query. Using focus area as query...")
                 return [focus_area.area]
 
             print(f"Original focus: {focus_area.area}")
@@ -404,10 +404,10 @@ Do not provide any additional information or explanation, note that the time ran
                     f.write(f"{'='*80}\n")
                     f.flush()
                     self.searched_urls.add(source_url)
-                    self.ui.update_output(f"Added content from: {source_url}")
+                    print(f"Added content from: {source_url}")
         except Exception as e:
             logger.error(f"Error adding to document: {str(e)}")
-            self.ui.update_output(f"Error saving content: {str(e)}")
+            print(f"Error saving content: {str(e)}")
 
     def _process_search_results(self, results: Dict[str, str], focus_area: str):
         """Process and store search results"""
@@ -430,25 +430,25 @@ Do not provide any additional information or explanation, note that the time ran
                     time.sleep(1)
                     continue
 
-                self.ui.update_output("\nAnalyzing research progress...")
+                print("\nAnalyzing research progress...")
 
                 # Generate focus areas
-                self.ui.update_output("\nGenerating research focus areas...")
+                print("\nGenerating research focus areas...")
                 analysis_result = self.strategic_parser.strategic_analysis(self.original_query)
 
                 if not analysis_result:
-                    self.ui.update_output("\nFailed to generate analysis result. Retrying...")
+                    print("\nFailed to generate analysis result. Retrying...")
                     continue
 
                 focus_areas = analysis_result.focus_areas
                 if not focus_areas:
-                    self.ui.update_output("\nNo valid focus areas generated. Retrying...")
+                    print("\nNo valid focus areas generated. Retrying...")
                     continue
 
-                self.ui.update_output(f"\nGenerated {len(focus_areas)} research areas:")
+                print(f"\nGenerated {len(focus_areas)} research areas:")
                 for i, focus in enumerate(focus_areas, 1):
-                    self.ui.update_output(f"\nArea {i}: {focus.area}")
-                    self.ui.update_output(f"Priority: {focus.priority}")
+                    print(f"\nArea {i}: {focus.area}")
+                    print(f"Priority: {focus.priority}")
 
                 # Process each focus area in priority order
                 for focus_area in focus_areas:
@@ -463,7 +463,7 @@ Do not provide any additional information or explanation, note that the time ran
                         break
 
                     self.current_focus = focus_area
-                    self.ui.update_output(f"\nInvestigating: {focus_area.area}")
+                    print(f"\nInvestigating: {focus_area.area}")
 
                     queries = self.formulate_search_queries(focus_area)
                     if not queries:
@@ -481,7 +481,7 @@ Do not provide any additional information or explanation, note that the time ran
                             break
 
                         try:
-                            self.ui.update_output(f"\nSearching: {query}")
+                            print(f"\nSearching: {query}")
                             results = self.search_engine.perform_search(query, time_range='none')
 
                             if results:
@@ -489,7 +489,7 @@ Do not provide any additional information or explanation, note that the time ran
                                 selected_urls = self.search_engine.select_relevant_pages(results, query)
 
                                 if selected_urls:
-                                    self.ui.update_output("\n⚙️ Scraping selected pages...")
+                                    print("\n⚙️ Scraping selected pages...")
                                     scraped_content = self.search_engine.scrape_content(selected_urls)
                                     if scraped_content:
                                         for url, content in scraped_content.items():
@@ -497,36 +497,33 @@ Do not provide any additional information or explanation, note that the time ran
                                                 self.add_to_document(content, url, focus_area.area)
 
                         except Exception as e:
-                            logger.error(f"Error in search: {str(e)}")
-                            self.ui.update_output(f"Error during search: {str(e)}")
+                            print(f"Error during search: {str(e)}")
 
                     if self.check_document_size():
-                        self.ui.update_output("\nDocument size limit reached. Finalizing research.")
+                        print("\nDocument size limit reached. Finalizing research.")
                         return
 
                 # After processing all areas, cycle back to generate new ones
-                self.ui.update_output("\nAll current focus areas investigated. Generating new areas...")
+                print("\nAll current focus areas investigated. Generating new areas...")
 
         except Exception as e:
-            logger.error(f"Error in research loop: {str(e)}")
-            self.ui.update_output(f"Error in research process: {str(e)}")
+            print(f"Error in research process: {str(e)}")
         finally:
             self.is_running = False
 
     def start_research(self, topic: str):
         """Start research with new session document"""
         try:
-            self.ui.setup()
             self.original_query = topic
             self._initialize_document()
 
-            self.ui.update_output(f"Starting research on: {topic}")
-            self.ui.update_output(f"Session document: {self.document_path}")
-            self.ui.update_output("\nCommands available during research:")
-            self.ui.update_output("'s' = Show status")
-            self.ui.update_output("'f' = Show current focus")
-            self.ui.update_output("'p' = Pause and assess the research progress")  # New command
-            self.ui.update_output("'q' = Quit research\n")
+            print(f"Starting research on: {topic}")
+            print(f"Session document: {self.document_path}")
+            print("\nCommands available during research:")
+            print("'s' = Show status")
+            print("'f' = Show current focus")
+            print("'p' = Pause and assess the research progress")  # New command
+            print("'q' = Quit research\n")
 
             # Reset events
             self.should_terminate.clear()
@@ -540,18 +537,18 @@ Do not provide any additional information or explanation, note that the time ran
 
             # Wait for research to actually start
             if not self.research_started.wait(timeout=10):
-                self.ui.update_output("Error: Research failed to start within timeout period")
+                print("Error: Research failed to start within timeout period")
                 self.should_terminate.set()
                 return
 
             while not self.should_terminate.is_set():
-                cmd = self.ui.get_input("Enter command: ")
+                cmd = input("Enter command: ")
                 if cmd is None or self.shutdown_event.is_set():
                     if self.should_terminate.is_set() and not self.research_complete:
-                        self.ui.update_output("\nGenerating research summary... please wait...")
+                        print("\nGenerating research summary... please wait...")
                         summary = self.terminate_research()
-                        self.ui.update_output("\nFinal Research Summary:")
-                        self.ui.update_output(summary)
+                        print("\nFinal Research Summary:")
+                        print(summary)
                     break
                 if cmd:
                     self._handle_command(cmd)
@@ -572,11 +569,10 @@ Do not provide any additional information or explanation, note that the time ran
 
             if current_ratio > 0.8:
                 logger.warning(f"Document size at {current_ratio*100:.1f}% of context limit")
-                self.ui.update_output(f"Warning: Document size at {current_ratio*100:.1f}% of context limit")
+                print(f"Warning: Document size at {current_ratio*100:.1f}% of context limit")
 
             return current_ratio > 0.9
         except Exception as e:
-            logger.error(f"Error checking document size: {str(e)}")
             return True
 
     def pause_and_assess(self):
