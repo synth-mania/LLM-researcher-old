@@ -1,8 +1,7 @@
 import openai
-from .llm_config import get_llm_config
 
 class LLMWrapper:
-    def __init__(self, preset_name):
+    def __init__(self, llm_config):
         """
         Initializes a new instance of the LLMWrapper class.
 
@@ -11,9 +10,7 @@ class LLMWrapper:
         to the LLM API and retrieve responses.
         """
         
-        self.llm_config = get_llm_config(preset_name)
-        openai.api_key = self.llm_config.get('api_key')
-        openai.api_base = self.llm_config.get('base_url')
+        self.llm_config = llm_config
     
     def generate(self, prompt, parameter_override=None):
         """
@@ -43,9 +40,9 @@ class LLMWrapper:
         return response.choices[0].text.strip()
 
 class ChatLLMWrapper(LLMWrapper):
-    def __init__(self, preset_name, system_message):
+    def __init__(self, config, system_message):
         
-        super().__init__(preset_name)
+        super().__init__(config)
         self.system_message = system_message
 
         self.messages = [{"role": "system", "content": system_message}]
