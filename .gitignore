@@ -2,4 +2,3 @@ __pycache__/
 venv/
 logs/
 research_session_*.txt
-modelfile
