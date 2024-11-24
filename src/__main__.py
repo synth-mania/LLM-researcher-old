@@ -5,7 +5,6 @@ import requests
 # from .Self_Improving_Search import EnhancedSelfImprovingSearch
 from .llm_config import get_llm_config
 # from .llm_response_parser import UltimateLLMResponseParser
-# from .llm_wrapper import LLMWrapper
 # from .strategic_analysis_parser import StrategicAnalysisParser
 from .research_manager import ResearchManager
 
@@ -15,6 +14,7 @@ class ResearchSession:
 
         self.query = query
         self.llm_config=None
+        self.research_manager = ResearchManager()
 
         print("Initialized new ResearchSession\n")
         
@@ -44,6 +44,9 @@ class ResearchSession:
     def start_research(self):
         if self.llm_config is None:
             raise ValueError("No API configuration loaded. Please load a preset first.")
+        
+        # Use ResearchManager to start research
+        self.research_manager.start_research(self.query, self.llm_config)
 
 def main():
     print("LLM Researcher\n")
