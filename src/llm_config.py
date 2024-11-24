@@ -9,7 +9,7 @@ def input_default(prompt, default):
 
 def get_llm_config(preset_name = "default"):
     try:
-        with open("config/model_presets/"+preset_name+".json", "r") as f:
+        with open(f"config/model_presets/{preset_name}.json", "r") as f:
             config = json.load(f)
         return config
     except FileNotFoundError:
@@ -22,7 +22,7 @@ def get_llm_config(preset_name = "default"):
         for key, default in PARAMETER_DEFAULT.items():
             value = input_default(f"{key}: ", default)
             config[key] = value
-        with open("config/model_presets/{preset_name}.json", "w") as f:
+        with open(f"config/model_presets/{preset_name}.json", "w") as f:
             json.dump(config, f)
             
         return config

@@ -1,34 +1,13 @@
 import sys
 import os
-# import logging
 import time
 import requests
-from .Self_Improving_Search import EnhancedSelfImprovingSearch
+# from .Self_Improving_Search import EnhancedSelfImprovingSearch
 from .llm_config import get_llm_config
-from .llm_response_parser import UltimateLLMResponseParser
-from .llm_wrapper import LLMWrapper
-from .strategic_analysis_parser import StrategicAnalysisParser
-from .research_manager import ResearchManager
-
-# Set up logging
-# log_directory = 'logs'
-# if not os.path.exists(log_directory):
-#     os.makedirs(log_directory)
-
-# logger = logging.getLogger(__name__)
-# logger.setLevel(logging.INFO)
-# log_file = os.path.join(log_directory, 'web_llm.log')
-# file_handler = logging.FileHandler(log_file)
-# formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-# file_handler.setFormatter(formatter)
-# logger.handlers = []
-# logger.addHandler(file_handler)
-# logger.propagate = False
-
-# Disable other loggers
-# for name in logging.root.manager.loggerDict:
-#     if name != __name__:
-#         logging.getLogger(name).disabled = True
+# from .llm_response_parser import UltimateLLMResponseParser
+# from .llm_wrapper import LLMWrapper
+# from .strategic_analysis_parser import StrategicAnalysisParser
+# from .research_manager import ResearchManager
 
 class ResearchSession:
     
@@ -117,6 +96,7 @@ def handle_research_mode(research_manager, query):
 def main():
     print("LLM Researcher")
     research_session = ResearchSession()
+    research_session.check_preset()
 
     try:
         llm, parser, search_engine, research_manager = check_preset()
