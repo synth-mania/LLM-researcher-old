@@ -7,11 +7,14 @@ from .llm_config import get_llm_config
 # from .llm_response_parser import UltimateLLMResponseParser
 # from .llm_wrapper import LLMWrapper
 # from .strategic_analysis_parser import StrategicAnalysisParser
-# from .research_manager import ResearchManager
+from .research_manager import ResearchManager
 
 class ResearchSession:
     
-    def __init__(self):
+    def __init__(self, query):
+
+        self.query = query
+        self.llm_config=None
 
         print("Initialized new ResearchSession\n")
         
@@ -20,6 +23,8 @@ class ResearchSession:
         """Initialize system with proper error checking"""
 
         self.llm_config = get_llm_config(preset_name=preset_name)
+
+        print("API server connection test...")
 
         try:
             response = requests.get(self.llm_config['base_url'], timeout=5)
@@ -33,6 +38,14 @@ class ResearchSession:
                 "\n2. If running locally, check that the model is loaded and accessible"
                 "\n3. If hosted externally, verify the base_url in your configuration file"
             )
+        
+        print("API server connection successful!\n")
+        
+    def start_research(self):
+        if self.llm_config is None:
+            raise ValueError("No API configuration loaded. Please load a preset first.")
+        
+        
         
 
 def handle_research_mode(research_manager, query):
@@ -93,79 +106,18 @@ def handle_research_mode(research_manager, query):
         research_manager.terminate_research()
 
 def main():
-    print("LLM Researcher")
-    research_session = ResearchSession()
+    print("LLM Researcher\n")
+
+    research_query = input(f"research query: ").strip()
+    research_session = ResearchSession(research_query)
     
     print("enter LLM preset name (entering a preset which doesn't exists prompts it's creation)")
     preset_name = input("preset name (default=default): ").strip() or "default"
+
+    print()
+
     research_session.load_preset(preset_name)
-
-    try:
-        llm, parser, search_engine, research_manager = check_preset()
-        if not all([llm, parser, search_engine, research_manager]):
-            return
-
-        while True:
-            try:
-                # Get input with improved CTRL+D handling
-                user_input = get_multiline_input()
-
-                # Handle immediate CTRL+D (empty input)
-                if user_input == "":
-                    user_input = "@quit"  # Convert empty CTRL+D to quit command
-
-                user_input = user_input.strip()
-
-                # Check for special quit markers
-                if user_input in ["@quit", "quit", "q"]:
-                    print("\nGoodbye!")
-                    break
-
-                if not user_input:
-                    continue
-
-                if user_input.lower() == 'help':
-                    print("Welcome to the Advanced Research Assistant!")
-                    print(usage)
-                    continue
-
-                if user_input.startswith('/'):
-                    search_query = user_input[1:].strip()
-                    handle_search_mode(search_engine, search_query)
-
-                elif user_input.startswith('@'):
-                    research_query = user_input[1:].strip()
-                    handle_research_mode(research_manager, research_query)
-
-                else:
-                    print("Please start with '/' for search or '@' for research.")
-
-            except KeyboardInterrupt:
-                print("\nExiting program...")
-                break
-
-            except Exception as e:
-                logger.error(f"Error in main loop: {str(e)}")
-                print(f"\nAn error occurred: {str(e)}")
-                continue
-
-    except KeyboardInterrupt:
-        print("\nProgram terminated by user.")
-
-    except Exception as e:
-        logger.critical(f"Critical error: {str(e)}")
-        print(f"\nCritical error: {str(e)}")
-
-    finally:
-        # Ensure proper cleanup on exit
-        try:
-            if 'research_manager' in locals() and research_manager:
-                if hasattr(research_manager, 'ui'):
-                    research_manager.ui.cleanup()
-            curses.endwin()
-        except:
-            pass
-        os._exit(0)
+    research_session.start_research()
 
 if __name__ == "__main__":
     main()
