@@ -31,105 +31,36 @@ The key distinction is that this isn't just a chatbot - it's an automated resear
 - Research conversation mode for exploring findings
 
 ## Installation
-
-### 1. Clone the repository and cd into the project root
+Clone the repository and cd into the project root
 
 ```sh
 git clone https://github.com/synth-mania/LLM-researcher-old
 cd LLM-researcher-old
 ```
 
-### 2. Install and Configure Ollama
-- Install Ollama following instructions at https://ollama.ai
-- Using your selected model file, create a custom model variant with the required context length
-  (phi3:3.8b-mini-128k-instruct or phi3:14b-medium-128k-instruct are recommended)
-
-Create a file named `modelfile` with these exact contents:
-
-```
-FROM your-model-name
-PARAMETER num_ctx 38000
-```
-
-Replace "your-model-name" with your chosen model (e.g., phi3:3.8b-mini-128k-instruct).
-
-Then create the model:
-
-```sh
-ollama create research-phi3 -f modelfile
-```
-
-Note: This specific configuration is necessary as recent Ollama versions have reduced context windows on models like phi3:3.8b-mini-128k-instruct despite the name suggesing high context which is why the modelfile step is necessary due to the high amount of information being used during the research process. 
-
-### 3. edit src/LLM-config.py with your model name
-
-Notice how model_name is the same as the name we gave it with the ollama create command above.
-
-```python
-LLM_CONFIG_OLLAMA = {
-    "llm_type": "ollama",
-    "base_url": "http://localhost:11434",  # default Ollama server URL
-    "model_name": "researcher",  # Replace with your Ollama model name
-    "temperature": 0.7,
-    "top_p": 0.9,
-    "n_ctx": 55000,
-    "context_length": 55000,
-    "stop": ["User:", "\n\n"]
-}
-
-```
-
 ## Usage
 
-### 1. Start Ollama
+### 1. Start LLM server
 
-Execute this in it's own terminal. Closing that terminal will stop Ollama.
-
-```sh
-ollama serve
-```
+If you're running a locally hosted LLM server, ensure it is running and accessible from your machine.
 
 ### 2. Run the researcher
 
 Open a terminal window and navigate to the project root directory, then execute the following command:
 
-
 ```sh
 ./start.sh
 ```
 
-### 3. Start a research session
-- Type `@` followed by your research query
-- Press CTRL+D to submit
-- Example: `@What year is global population projected to start declining?`
-
-### 4. During research you can use the following commands by typing the letter associated with each and submitting with CTRL+D:
-- Use `s` to show status.
-- Use `f` to show current focus.
-- Use `p` to pause and assess research progress, which will give you an assessment from the LLM after reviewing the entire research content whether it can answer your query or not with the content it has so far collected, then it waits for you to input one of two commands, `c` to continue with the research or `q` to terminate it which will result in a summary like if you terminated it without using the pause feature.
-- Use `q` to quit research.
-
-### 5. After research completes:
-- Wait for the summary to be generated, and review the LLM's findings.
-- Enter conversation mode to ask specific questions about the findings.
-- Access the detailed research content found, avaliable in the in a research session text file which will appear in the programs directory, which includes:
-  * All retrieved content
-  * Source URLs for all information
-  * Focus areas investigated
-  * Generated summary
-
-## Configuration
-
-The LLM settings can be modified in `llm_config.py`. You must specify your model name in the configuration for the researcher to function. The default configuration is optimized for research tasks with the specified Phi-3 model.
+The program will prompt you to enter the name of an LLM configuration preset. If you enter no name, or if no such preset is found, you'll be prompted to enter the necessary information to connect to an LLM. (base url, model name, API key, etc.)
 
 ## Current Status
-This is a prototype that demonstrates functional automated research capabilities. While still in development, it successfully performs structured research tasks. Currently tested and working well with the phi3:3.8b-mini-128k-instruct model when the context is set as advised previously.
+
+This is a (nearly) complete rewrite of [TheBlewish/Automated-AI-Web-Researcher-Ollama](https://github.com/TheBlewish/Automated-AI-Web-Researcher-Ollama). I wasn't satisfied with the speed of the progression of that project, and had several improvements in mind, so this hard fork exists to see where I can take the project on my own. At the moment, it is entirely nonfunctional, but I'm actively working on changing that. If you would like to contribute, feel free to open an issue or pull request.
 
 ## Dependencies
-- Ollama
-- Python packages listed in requirements.txt
-- Recommended model: phi3:3.8b-mini-128k-instruct or phi3:14b-medium-128k-instruct (with custom context length as specified)
-Make sure you have gcc and g++, for the dependencies in requirements.txt to compile properly.
+- Python 3.8 or later
+- pip
 
 ## Contributing
 Contributions are welcome! This is a prototype with room for improvements and new features.
@@ -138,9 +69,8 @@ Contributions are welcome! This is a prototype with room for improvements and ne
 This project is licensed under the MIT License - see the [LICENSE] file for details.
 
 ## Acknowledgments
-- Ollama team for their local LLM runtime
 - DuckDuckGo for their search API
-- James Warburton (i.e. TheBlewish) for initially creating this project
+- James Warburton (i.e. TheBlewish) for creating the parent project from which this is derived.
 
 ## Disclaimer
 This project is for educational purposes only. Ensure you comply with the terms of service of all APIs and services used.
